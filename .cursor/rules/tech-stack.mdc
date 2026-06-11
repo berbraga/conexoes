@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+Ultilize o python para fazer essa automação, o Docker para conteinizar e deixar facil de ser colocada em uma VPS colocando todas as dependencias dentro, nada de rodar localmente alguma coisa, somente dentro do container

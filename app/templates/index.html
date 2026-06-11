@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LinkedIn Auto Connect</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <main class="container">
+        <header>
+            <h1>LinkedIn Auto Connect</h1>
+            <p>Automação de convites de conexão com agendamento e limites de segurança.</p>
+        </header>
+
+        {% if message %}
+        <div class="alert alert-success">{{ message }}</div>
+        {% endif %}
+        {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+        {% if request.query_params.get('started') %}
+        <div class="alert alert-success">Execução iniciada. Acompanhe o status abaixo.</div>
+        {% endif %}
+
+        <section class="status-panel">
+            <h2>Status</h2>
+            <div class="status-grid">
+                <div class="status-card">
+                    <span class="label">Execução</span>
+                    <strong class="{{ 'running' if is_running else 'idle' }}">
+                        {{ 'Em andamento' if is_running else 'Parada' }}
+                    </strong>
+                </div>
+                <div class="status-card">
+                    <span class="label">Hoje</span>
+                    <strong>{{ invites_today }} / {{ config.daily_limit }}</strong>
+                </div>
+                <div class="status-card">
+                    <span class="label">Semana</span>
+                    <strong>{{ invites_week }} / {{ config.weekly_limit }}</strong>
+                </div>
+                <div class="status-card">
+                    <span class="label">Total enviados</span>
+                    <strong>{{ total_invites }}</strong>
+                </div>
+                <div class="status-card">
+                    <span class="label">Próxima execução</span>
+                    <strong>{{ next_run or 'Não agendada' }}</strong>
+                </div>
+            </div>
+
+            {% if latest_run %}
+            <p class="muted">
+                Última execução: {{ latest_run.status }} —
+                {{ latest_run.sent_count }} enviados,
+                {{ latest_run.skipped_count }} ignorados
+                {% if latest_run.error_message %}
+                ({{ latest_run.error_message }})
+                {% endif %}
+            </p>
+            {% endif %}
+        </section>
+
+        <form method="post" action="/config" class="config-form">
+            <h2>Configurações</h2>
+
+            <label for="li_at_cookie">Cookie li_at</label>
+            <input
+                type="password"
+                id="li_at_cookie"
+                name="li_at_cookie"
+                placeholder="Cole o cookie li_at (deixe vazio para manter o atual)"
+                autocomplete="off"
+            >
+
+            <label>Dias da semana</label>
+            <div class="weekdays">
+                {% for day in weekday_options %}
+                <label class="checkbox">
+                    <input
+                        type="checkbox"
+                        name="weekdays"
+                        value="{{ day.value }}"
+                        {% if day.value in config.weekdays %}checked{% endif %}
+                    >
+                    {{ weekday_labels[day] }}
+                </label>
+                {% endfor %}
+            </div>
+
+            <label for="run_time">Horário de execução</label>
+            <input type="time" id="run_time" name="run_time" value="{{ config.run_time }}" required>
+
+            <label for="search_url">URL da busca de pessoas</label>
+            <input
+                type="url"
+                id="search_url"
+                name="search_url"
+                value="{{ config.search_url }}"
+                placeholder="https://www.linkedin.com/search/results/people/?..."
+                required
+            >
+
+            <label for="note_template">Mensagem da nota</label>
+            <textarea
+                id="note_template"
+                name="note_template"
+                rows="4"
+                maxlength="300"
+                required
+            >{{ config.note_template }}</textarea>
+            <p class="hint">Use <code>{nome}</code> para personalizar com o primeiro nome da conexão.</p>
+
+            <div class="limits-grid">
+                <div>
+                    <label for="daily_limit">Limite diário</label>
+                    <input type="number" id="daily_limit" name="daily_limit" min="1" max="50" value="{{ config.daily_limit }}">
+                </div>
+                <div>
+                    <label for="weekly_limit">Limite semanal</label>
+                    <input type="number" id="weekly_limit" name="weekly_limit" min="1" max="300" value="{{ config.weekly_limit }}">
+                </div>
+                <div>
+                    <label for="delay_min_seconds">Delay mínimo (s)</label>
+                    <input type="number" id="delay_min_seconds" name="delay_min_seconds" min="5" max="300" value="{{ config.delay_min_seconds }}">
+                </div>
+                <div>
+                    <label for="delay_max_seconds">Delay máximo (s)</label>
+                    <input type="number" id="delay_max_seconds" name="delay_max_seconds" min="10" max="600" value="{{ config.delay_max_seconds }}">
+                </div>
+            </div>
+
+            <label class="checkbox scheduler-toggle">
+                <input type="checkbox" name="scheduler_enabled" {% if config.scheduler_enabled %}checked{% endif %}>
+                Ativar agendamento automático
+            </label>
+
+            <div class="actions">
+                <button type="submit" class="btn btn-primary">Salvar configurações</button>
+            </div>
+        </form>
+
+        <div class="actions run-actions">
+            <form method="post" action="/run">
+                <button type="submit" class="btn btn-success" {% if is_running %}disabled{% endif %}>
+                    Executar agora
+                </button>
+            </form>
+            <form method="post" action="/stop">
+                <button type="submit" class="btn btn-danger" {% if not is_running %}disabled{% endif %}>
+                    Parar execução
+                </button>
+            </form>
+        </div>
+
+        {% if recent_runs %}
+        <section class="history">
+            <h2>Histórico recente</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Início</th>
+                        <th>Status</th>
+                        <th>Enviados</th>
+                        <th>Ignorados</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for run in recent_runs %}
+                    <tr>
+                        <td>{{ run.id }}</td>
+                        <td>{{ run.started_at }}</td>
+                        <td>{{ run.status }}</td>
+                        <td>{{ run.sent_count }}</td>
+                        <td>{{ run.skipped_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+        {% endif %}
+    </main>
+</body>
+</html>

@@ -1,0 +1,12 @@
+services:
+  linkedin-connect:
+    build: .
+    container_name: linkedin-auto-connect
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TZ=America/Sao_Paulo
+    restart: unless-stopped
+    shm_size: "1gb"

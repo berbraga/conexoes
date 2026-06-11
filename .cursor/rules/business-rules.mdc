@@ -1,0 +1,18 @@
+---
+alwaysApply: true
+---
+
+Quero que essa autmação ela seja programática pelo usuario, programando a hora que vai rodar a quantidade de dias que vai rodar na semana, e sem um intervalo final, o final se deve somente quando ele termina de rodar o mesmo.
+
+O que deve fazer a automação:
+    -> Ela deve ter uma interface simples, apenas para as configurações essenciais como configurações de dias da semana que roda, e um link de lista de conexoes para disparar a conexao junto com uma nota de pedido de amizade na qual o usuario que vai escolher, lembrando que a mensagem tem que ser a mesma e com parametros dinamicos, como o nome da conexao
+
+
+
+
+
+
+
+
+
+
